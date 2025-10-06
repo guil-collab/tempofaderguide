@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dual Deck Vinyl Tempo Helper — Master + ±10%/±20%</title>
+<style>
+  :root{
+    --bg:#0a0f15; --panel:#0e1420; --card:#111827; --ink:#e8f0ff; --muted:#9db1d7cc;
+    --accent:#7aa2ff; --ok:#5bd38f; --warn:#ffd166; --bad:#ff6b6b;
+    --steel:#283548; --steel2:#1c2738;
+    --tick-minor:#33455f; --tick-major:#8aa2c8; --tick-zero:#7aa2ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:radial-gradient(1000px 800px at 20% 0%,#0f1623,#0a0f15 60%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1200px; margin:24px auto; padding:0 16px; display:grid; gap:18px}
+  header{display:flex; gap:12px; align-items:center; justify-content:space-between}
+  h1{font-size:1.15rem; margin:0}
+  .controls{display:flex; gap:14px; align-items:center; background:var(--panel); border:1px solid #1c2b41; padding:10px 12px; border-radius:12px}
+  .segmented{display:inline-flex; background:#0f1725; border:1px solid #22324a; border-radius:999px; overflow:hidden}
+  .segmented input{display:none}
+  .segmented label{padding:8px 12px; cursor:pointer; color:#cfe1ff; font-size:.95rem}
+  .segmented input:checked + label{background:#1a2335; color:#fff}
+  .btn{appearance:none; border:1px solid #22324a; background:#111b2a; color:#e8f0ff; padding:8px 12px; border-radius:10px; cursor:pointer}
+  .btn:active{transform:translateY(1px)}
+  .range-pill{padding:6px 10px; border-radius:999px; border:1px solid #22324a; background:#0f1725}
+  .range-pill b{color:#cfe1ff}
+
+  .decks{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  .deck{background:linear-gradient(180deg,#0f151f,#0a0f17); border:1px solid #1b273a; border-radius:16px; padding:16px; position:relative; overflow:hidden}
+  .title{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px}
+  .title h2{margin:0; font-size:1rem}
+  .kpis{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
+  .pill{display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px solid #22324a; font-size:.9rem; background:#0f1725}
+  .pill.ok{border-color:#2d6b4f; color:#c7f5df; background:#0d1d16}
+  .pill.warn{border-color:#6e5820; color:#ffe6a6; background:#19150a}
+  .pill.bad{border-color:#6b2d2d; color:#ffd2d2; background:#1d0d0d}
+
+  /* Vinyl aesthetic platter */
+  .platter-area{display:grid; grid-template-columns: 1fr auto; gap:16px; align-items:center}
+  .platter{
+    width:280px; height:280px; border-radius:50%; position:relative; background:
+      radial-gradient( circle at 50% 50%, #1b2432 0 24%, transparent 24% ),
+      repeating-radial-gradient( circle at 50% 50%, #0b1018 0 2px, #121a28 2px 4px );
+    box-shadow: inset 0 0 20px #000a, 0 10px 30px #0007;
+    border:2px solid #202a3b;
+  }
+  .label{
+    position:absolute; inset:50% auto auto 50%; width:110px; height:110px; transform:translate(-50%,-50%);
+    background:radial-gradient(circle at 60% 40%, #2a3a55, #162139 60%);
+    border-radius:50%; border:2px solid #22324a; box-shadow:inset 0 0 10px #0007;
+    display:grid; place-items:center; color:#d6e1ff; font-weight:600;
+  }
+  .spindle{position:absolute; left:50%; top:50%; width:8px; height:8px; background:#c8d7ff; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 8px #9fb8ff88}
+  .bpm-input{margin-top:8px}
+  .bpm-input label{display:block; color:#cfe1ff; margin-bottom:6px}
+  .bpm-input input{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #22324a; background:#0e1520; color:#e8f0ff}
+
+  /* Fader */
+  .fader{
+    position:relative; width:120px; height:380px; background:#0c121b; border-radius:14px; border:1px solid #233149; padding:18px 24px;
+    box-shadow: inset 0 0 0 2px #0a0f18, inset 0 10px 30px #00000066;
+  }
+  .track{
+    position:absolute; left:58%; transform:translateX(-50%); top:24px; bottom:24px; width:6px; background:#1d2838; border-radius:6px;
+    box-shadow: inset 0 0 0 1px #2a3952;
+  }
+  .tick{
+    position:absolute; left:58%; transform:translateX(-50%); height:1px; background:var(--tick-minor); opacity:.85;
+  }
+  .tick.minor{ width:40px; opacity:.55 }
+  .tick.major{ width:60px; background:var(--tick-major) }
+  .tick.zero{ width:76px; height:2px; background:var(--tick-zero); box-shadow:0 0 10px #7aa2ff66 }
+  .tick::after{
+    content:attr(data-label);
+    position:absolute; right:60px; top:-9px; font-size:.82rem; color:#9fb8df;
+  }
+  .tick.minor::after{ content:'' }
+  .thumb{
+    --y:50%;
+    position:absolute; left:58%; transform:translate(-50%, calc(var(--y) * 1px));
+    width:74px; height:18px; background:linear-gradient(180deg,#9fb8ff,#6e8fe6); border-radius:8px; box-shadow:0 2px 10px #0009;
+    border:1px solid #1d2a44;
+  }
+  .ghost{
+    position:absolute; left:58%; transform:translate(-50%, calc(var(--y) * 1px)); width:84px; height:22px; border-radius:9px;
+    border:1px dashed #7aa2ff77; background:transparent; pointer-events:none;
+  }
+  .legend{font-size:.88rem; color:#9db1d7}
+  .muted{color:var(--muted)}
+
+  footer{color:#7c93bd; text-align:center; padding:8px 0 20px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Dual Deck Vinyl Tempo Helper</h1>
+      <div class="controls">
+        <div class="segmented" role="radiogroup" aria-label="Seleccionar master">
+          <input type="radio" id="mL" name="master" value="L" checked>
+          <label for="mL">Master: Izquierda</label>
+          <input type="radio" id="mR" name="master" value="R">
+          <label for="mR">Master: Derecha</label>
+        </div>
+        <span class="range-pill">Rango actual: <b id="rangeLabel">±10%</b></span>
+        <button class="btn" id="toggleRangeBtn">Cambiar a ±20%</button>
+      </div>
+    </header>
+
+    <section class="decks">
+      <!-- LEFT DECK -->
+      <div class="deck" id="deckL">
+        <div class="title">
+          <h2>Plato Izquierdo</h2>
+          <div class="kpis">
+            <span class="pill">BPM objetivo: <b id="bpmTargetL">—</b></span>
+            <span class="pill" id="pillL">Pitch: —</span>
+          </div>
+        </div>
+        <div class="platter-area">
+          <div>
+            <div class="platter">
+              <div class="label">L</div>
+              <div class="spindle"></div>
+            </div>
+            <div class="bpm-input">
+              <label for="bpmL">BPM Izquierda</label>
+              <input id="bpmL" type="number" inputmode="decimal" min="30" max="300" step="0.01" value="128.00">
+            </div>
+          </div>
+
+          <div>
+            <div class="fader">
+              <div class="track"></div>
+              <div id="ticksL"></div>
+              <div class="ghost" id="ghostL"></div>
+              <div class="thumb" id="thumbL"></div>
+            </div>
+            <p class="legend"><span id="legendL" class="muted">0%</span> desde el centro (quartz)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT DECK -->
+      <div class="deck" id="deckR">
+        <div class="title">
+          <h2>Plato Derecho</h2>
+          <div class="kpis">
+            <span class="pill">BPM objetivo: <b id="bpmTargetR">—</b></span>
+            <span class="pill" id="pillR">Pitch: —</span>
+          </div>
+        </div>
+        <div class="platter-area">
+          <div>
+            <div class="platter">
+              <div class="label">R</div>
+              <div class="spindle"></div>
+            </div>
+            <div class="bpm-input">
+              <label for="bpmR">BPM Derecha</label>
+              <input id="bpmR" type="number" inputmode="decimal" min="30" max="300" step="0.01" value="125.00">
+            </div>
+          </div>
+
+          <div>
+            <div class="fader">
+              <div class="track"></div>
+              <div id="ticksR"></div>
+              <div class="ghost" id="ghostR"></div>
+              <div class="thumb" id="thumbR"></div>
+            </div>
+            <p class="legend"><span id="legendR" class="muted">0%</span> desde el centro (quartz)</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>Marcas del fader: 1% (ligeras) y 2% (más marcadas y numeradas). 0% destacado en azul.</footer>
+  </div>
+
+<script>
+(function(){
+  const bpmL = document.getElementById('bpmL');
+  const bpmR = document.getElementById('bpmR');
+  const bpmTargetL = document.getElementById('bpmTargetL');
+  const bpmTargetR = document.getElementById('bpmTargetR');
+  const thumbL = document.getElementById('thumbL');
+  const thumbR = document.getElementById('thumbR');
+  const ghostL = document.getElementById('ghostL');
+  const ghostR = document.getElementById('ghostR');
+  const legendL = document.getElementById('legendL');
+  const legendR = document.getElementById('legendR');
+  const ticksL = document.getElementById('ticksL');
+  const ticksR = document.getElementById('ticksR');
+  const pillL = document.getElementById('pillL');
+  const pillR = document.getElementById('pillR');
+
+  const rangeLabel = document.getElementById('rangeLabel');
+  const toggleRangeBtn = document.getElementById('toggleRangeBtn');
+
+  const radios = [...document.querySelectorAll('input[name="master"]')];
+
+  const FADER_H = 380;
+  const PAD_V = 24;
+  const TRACK_H = FADER_H - PAD_V*2;
+
+  let range = 0.10; // ±10% default
+
+  function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
+  function fmtPct(x){return (x>=0?'+':'') + (x*100).toFixed(2) + '%';}
+
+  function buildTicks(container){
+    container.innerHTML='';
+    const pctRange = Math.round(range*100); // 10 o 20
+    for(let p=-pctRange; p<=pctRange; p++){
+      const isZero = (p===0);
+      const isMajor = (p%2===0); // 2% increment major
+      const div = document.createElement('div');
+      div.className = 'tick ' + (isZero ? 'zero' : (isMajor ? 'major' : 'minor'));
+      // y: -range -> top ; +range -> bottom
+      const yNorm = (p + pctRange) / (2*pctRange);
+      const yPx = PAD_V + yNorm*TRACK_H;
+      div.style.top = (yPx|0)+'px';
+      if(isZero){
+        div.setAttribute('data-label','0%');
+      } else if(isMajor){
+        div.setAttribute('data-label', (p>0? '+'+p : String(p)) + '%');
+      }
+      container.appendChild(div);
+    }
+  }
+
+  function applyFaderPosition(deck, p){ // p is fractional pitch (-range..+range)
+    const pctRange = range;
+    const yNorm = (p + pctRange) / (2*pctRange);
+    const yPx = clamp(yNorm,0,1) * (FADER_H - 48);
+    const thumb = (deck==='L') ? thumbL : thumbR;
+    const ghost = (deck==='L') ? ghostL : ghostR;
+    const legend = (deck==='L') ? legendL : legendR;
+    thumb.style.setProperty('--y', (24 + yPx) );
+    ghost.style.setProperty('--y', (24 + yPx) );
+    legend.textContent = fmtPct(p) + ' desde el centro';
+  }
+
+  function update(){
+    const L = parseFloat(bpmL.value);
+    const R = parseFloat(bpmR.value);
+    if(!(L>0 && R>0)) return;
+
+    const master = radios.find(r=>r.checked).value; // 'L' or 'R'
+    let pL = 0, pR = 0;
+    let targetBpmL = L, targetBpmR = R;
+
+    if(master==='L'){
+      // Ajustar R para igualar L: pR = L/R - 1
+      pR = (L/R) - 1;
+      targetBpmR = R*(1+pR);
+      pL = 0; targetBpmL = L;
+    }else{
+      // Ajustar L para igualar R: pL = R/L - 1
+      pL = (R/L) - 1;
+      targetBpmL = L*(1+pL);
+      pR = 0; targetBpmR = R;
+    }
+
+    // Estado de rango
+    const inRangeL = Math.abs(pL) <= range + 1e-9;
+    const inRangeR = Math.abs(pR) <= range + 1e-9;
+
+    // KPIs
+    bpmTargetL.textContent = targetBpmL.toFixed(2);
+    bpmTargetR.textContent = targetBpmR.toFixed(2);
+
+    pillL.textContent = 'Pitch: ' + fmtPct(pL);
+    pillR.textContent = 'Pitch: ' + fmtPct(pR);
+    pillL.className = 'pill ' + (Math.abs(pL)===0 ? '' : (inRangeL ? (Math.abs(pL)>0.8*range?'warn':'ok') : 'bad'));
+    pillR.className = 'pill ' + (Math.abs(pR)===0 ? '' : (inRangeR ? (Math.abs(pR)>0.8*range?'warn':'ok') : 'bad'));
+
+    // Faders
+    applyFaderPosition('L', clamp(pL, -range, +range));
+    applyFaderPosition('R', clamp(pR, -range, +range));
+  }
+
+  function rebuildTicks(){
+    buildTicks(ticksL);
+    buildTicks(ticksR);
+  }
+
+  // Events
+  bpmL.addEventListener('input', update);
+  bpmR.addEventListener('input', update);
+  radios.forEach(r=>r.addEventListener('change', update));
+
+  toggleRangeBtn.addEventListener('click', ()=>{
+    range = (range===0.10)? 0.20 : 0.10;
+    rangeLabel.textContent = '±' + Math.round(range*100) + '%';
+    toggleRangeBtn.textContent = 'Cambiar a ±' + (range===0.10? '20' : '10') + '%';
+    rebuildTicks();
+    update();
+  });
+
+  // init
+  rebuildTicks();
+  update();
+})();
+</script>
+</body>
+</html>
