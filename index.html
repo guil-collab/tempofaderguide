@@ -1,309 +1,702 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dual Deck Vinyl Tempo Helper — Master + ±10%/±20%</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dual Deck Vinyl Tempo Helper</title>
 <style>
-  :root{
-    --bg:#0a0f15; --panel:#0e1420; --card:#111827; --ink:#e8f0ff; --muted:#9db1d7cc;
-    --accent:#7aa2ff; --ok:#5bd38f; --warn:#ffd166; --bad:#ff6b6b;
-    --steel:#283548; --steel2:#1c2738;
-    --tick-minor:#33455f; --tick-major:#8aa2c8; --tick-zero:#7aa2ff;
+  :root {
+    color-scheme: dark;
+    --bg: #000;
+    --text: #f5f5f5;
+    --accent: #2d9cff;
+    --track: #303030;
+    --tick: #6a6a6a;
+    --tick-strong: #8c8c8c;
+    --ghost: #8c8c8c;
   }
-  *{box-sizing:border-box}
-  body{margin:0; background:radial-gradient(1000px 800px at 20% 0%,#0f1623,#0a0f15 60%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1200px; margin:24px auto; padding:0 16px; display:grid; gap:18px}
-  header{display:flex; gap:12px; align-items:center; justify-content:space-between}
-  h1{font-size:1.15rem; margin:0}
-  .controls{display:flex; gap:14px; align-items:center; background:var(--panel); border:1px solid #1c2b41; padding:10px 12px; border-radius:12px}
-  .segmented{display:inline-flex; background:#0f1725; border:1px solid #22324a; border-radius:999px; overflow:hidden}
-  .segmented input{display:none}
-  .segmented label{padding:8px 12px; cursor:pointer; color:#cfe1ff; font-size:.95rem}
-  .segmented input:checked + label{background:#1a2335; color:#fff}
-  .btn{appearance:none; border:1px solid #22324a; background:#111b2a; color:#e8f0ff; padding:8px 12px; border-radius:10px; cursor:pointer}
-  .btn:active{transform:translateY(1px)}
-  .range-pill{padding:6px 10px; border-radius:999px; border:1px solid #22324a; background:#0f1725}
-  .range-pill b{color:#cfe1ff}
-
-  .decks{display:grid; grid-template-columns:1fr 1fr; gap:18px}
-  .deck{background:linear-gradient(180deg,#0f151f,#0a0f17); border:1px solid #1b273a; border-radius:16px; padding:16px; position:relative; overflow:hidden}
-  .title{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px}
-  .title h2{margin:0; font-size:1rem}
-  .kpis{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
-  .pill{display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px solid #22324a; font-size:.9rem; background:#0f1725}
-  .pill.ok{border-color:#2d6b4f; color:#c7f5df; background:#0d1d16}
-  .pill.warn{border-color:#6e5820; color:#ffe6a6; background:#19150a}
-  .pill.bad{border-color:#6b2d2d; color:#ffd2d2; background:#1d0d0d}
-
-  /* Vinyl aesthetic platter */
-  .platter-area{display:grid; grid-template-columns: 1fr auto; gap:16px; align-items:center}
-  .platter{
-    width:280px; height:280px; border-radius:50%; position:relative; background:
-      radial-gradient( circle at 50% 50%, #1b2432 0 24%, transparent 24% ),
-      repeating-radial-gradient( circle at 50% 50%, #0b1018 0 2px, #121a28 2px 4px );
-    box-shadow: inset 0 0 20px #000a, 0 10px 30px #0007;
-    border:2px solid #202a3b;
+  * {
+    box-sizing: border-box;
   }
-  .label{
-    position:absolute; inset:50% auto auto 50%; width:110px; height:110px; transform:translate(-50%,-50%);
-    background:radial-gradient(circle at 60% 40%, #2a3a55, #162139 60%);
-    border-radius:50%; border:2px solid #22324a; box-shadow:inset 0 0 10px #0007;
-    display:grid; place-items:center; color:#d6e1ff; font-weight:600;
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 4rem;
+    gap: 2rem;
   }
-  .spindle{position:absolute; left:50%; top:50%; width:8px; height:8px; background:#c8d7ff; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 8px #9fb8ff88}
-  .bpm-input{margin-top:8px}
-  .bpm-input label{display:block; color:#cfe1ff; margin-bottom:6px}
-  .bpm-input input{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #22324a; background:#0e1520; color:#e8f0ff}
-
-  /* Fader */
-  .fader{
-    position:relative; width:120px; height:380px; background:#0c121b; border-radius:14px; border:1px solid #233149; padding:18px 24px;
-    box-shadow: inset 0 0 0 2px #0a0f18, inset 0 10px 30px #00000066;
+  h1 {
+    font-size: clamp(1.5rem, 2vw + 1rem, 2.8rem);
+    margin: 0;
+    text-align: center;
+    letter-spacing: 0.08em;
   }
-  .track{
-    position:absolute; left:58%; transform:translateX(-50%); top:24px; bottom:24px; width:6px; background:#1d2838; border-radius:6px;
-    box-shadow: inset 0 0 0 1px #2a3952;
+  .app {
+    width: min(1200px, 100%);
+    display: grid;
+    gap: 2rem;
   }
-  .tick{
-    position:absolute; left:58%; transform:translateX(-50%); height:1px; background:var(--tick-minor); opacity:.85;
+  .top-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
   }
-  .tick.minor{ width:40px; opacity:.55 }
-  .tick.major{ width:60px; background:var(--tick-major) }
-  .tick.zero{ width:76px; height:2px; background:var(--tick-zero); box-shadow:0 0 10px #7aa2ff66 }
-  .tick::after{
-    content:attr(data-label);
-    position:absolute; right:60px; top:-9px; font-size:.82rem; color:#9fb8df;
+  .top-controls button,
+  .top-controls .range-label {
+    background: #111;
+    border: 1px solid #333;
+    color: var(--text);
+    padding: 0.6rem 1rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
   }
-  .tick.minor::after{ content:'' }
-  .thumb{
-    --y:50%;
-    position:absolute; left:58%; transform:translate(-50%, calc(var(--y) * 1px));
-    width:74px; height:18px; background:linear-gradient(180deg,#9fb8ff,#6e8fe6); border-radius:8px; box-shadow:0 2px 10px #0009;
-    border:1px solid #1d2a44;
+  .top-controls button:hover,
+  .deck button:hover {
+    background: #1b1b1b;
   }
-  .ghost{
-    position:absolute; left:58%; transform:translate(-50%, calc(var(--y) * 1px)); width:84px; height:22px; border-radius:9px;
-    border:1px dashed #7aa2ff77; background:transparent; pointer-events:none;
+  .top-controls .range-label {
+    cursor: default;
   }
-  .legend{font-size:.88rem; color:#9db1d7}
-  .muted{color:var(--muted)}
-
-  footer{color:#7c93bd; text-align:center; padding:8px 0 20px}
+  .decks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+  }
+  .deck {
+    background: #111;
+    border: 1px solid #1f1f1f;
+    border-radius: 18px;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+  .deck header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .deck header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .tempo-display {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.95rem;
+  }
+  .tempo-display strong {
+    font-size: 1.2rem;
+  }
+  .bpm-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .bpm-control button {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid #2a2a2a;
+    background: #1a1a1a;
+    color: var(--text);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+  .bpm-control input {
+    width: 5.5rem;
+    background: #000;
+    border: 1px solid #444;
+    border-radius: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    color: var(--text);
+    font-size: 1.1rem;
+    text-align: center;
+  }
+  .slider-area {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+  .fader {
+    position: relative;
+    width: 120px;
+    display: flex;
+    justify-content: center;
+  }
+  .fader-track {
+    position: relative;
+    width: 72px;
+    height: 420px;
+    background: linear-gradient(180deg, #070707, #0f0f0f);
+    border-radius: 999px;
+    border: 1px solid #1c1c1c;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .track-inner {
+    position: relative;
+    width: 100%;
+  }
+  .tick {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+  .tick::before {
+    content: "";
+    display: block;
+    height: 1px;
+    background: var(--tick);
+    width: 18px;
+    margin-left: 10px;
+  }
+  .tick.major::before {
+    width: 28px;
+    background: var(--tick-strong);
+  }
+  .tick.zero::before {
+    height: 3px;
+    background: var(--accent);
+  }
+  .tick-label {
+    margin-left: 42px;
+    font-size: 0.75rem;
+    color: #b5b5b5;
+  }
+  .fader-track .extreme {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.1rem;
+    color: #7b7b7b;
+  }
+  .fader-track .extreme.top {
+    top: 12px;
+  }
+  .fader-track .extreme.bottom {
+    bottom: 12px;
+  }
+  .ghost-line {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    border-top: 1px dashed var(--ghost);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .thumb {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 36px;
+    border-radius: 24px;
+    background: var(--accent);
+    border: 2px solid #0b5fa5;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #000;
+    box-shadow: 0 6px 16px rgba(45, 156, 255, 0.35);
+  }
+  .thumb:active {
+    cursor: grabbing;
+  }
+  .thumb:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+  }
+  .quartz-chip {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0.25rem 0.6rem;
+    background: var(--accent);
+    color: #001d36;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    top: 50%;
+    display: none;
+  }
+  .quartz-chip.visible {
+    display: inline-flex;
+  }
+  .slider-info {
+    display: grid;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+  }
+  .deck button.secondary {
+    background: #181818;
+    border-radius: 0.6rem;
+    border: 1px solid #2a2a2a;
+    padding: 0.6rem 1rem;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .made-by {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(45, 156, 255, 0.85);
+    color: #041b2b;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    box-shadow: 0 4px 16px rgba(45, 156, 255, 0.45);
+    z-index: 999;
+  }
+  @media (max-width: 768px) {
+    .fader-track {
+      height: 320px;
+      width: 60px;
+    }
+    .thumb {
+      width: 50px;
+      height: 30px;
+    }
+    .tick::before {
+      margin-left: 6px;
+      width: 14px;
+    }
+    .tick.major::before {
+      width: 22px;
+    }
+    .tick-label {
+      margin-left: 34px;
+      font-size: 0.7rem;
+    }
+  }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Dual Deck Vinyl Tempo Helper</h1>
-      <div class="controls">
-        <div class="segmented" role="radiogroup" aria-label="Seleccionar master">
-          <input type="radio" id="mL" name="master" value="L" checked>
-          <label for="mL">Master: Izquierda</label>
-          <input type="radio" id="mR" name="master" value="R">
-          <label for="mR">Master: Derecha</label>
-        </div>
-        <span class="range-pill">Rango actual: <b id="rangeLabel">±10%</b></span>
-        <button class="btn" id="toggleRangeBtn">Cambiar a ±20%</button>
-      </div>
-    </header>
-
-    <section class="decks">
-      <!-- LEFT DECK -->
-      <div class="deck" id="deckL">
-        <div class="title">
-          <h2>Plato Izquierdo</h2>
-          <div class="kpis">
-            <span class="pill">BPM objetivo: <b id="bpmTargetL">—</b></span>
-            <span class="pill" id="pillL">Pitch: —</span>
+  <div class="made-by">Hecho por GuilTeach</div>
+  <h1>Dual Deck Vinyl Tempo Helper</h1>
+  <div class="app" aria-live="polite">
+    <div class="top-controls">
+      <button type="button" id="align-right" aria-label="Alinear tempo de la derecha con la izquierda">Alinear derecha ↦ izquierda</button>
+      <button type="button" id="align-left" aria-label="Alinear tempo de la izquierda con la derecha">Alinear izquierda ↦ derecha</button>
+      <button type="button" id="toggle-range" aria-pressed="false" aria-label="Cambiar rango de pitch entre ±10% y ±20%">Cambiar rango ±10%</button>
+      <span class="range-label" id="range-label">Rango actual: ±10.00%</span>
+    </div>
+    <div class="decks">
+      <section class="deck" id="deck-left" aria-label="Deck izquierdo">
+        <header>
+          <h2>Deck Izquierda</h2>
+          <div class="tempo-display">
+            <span>BPM original</span>
+            <strong><span class="bpm-value">120.00</span> BPM</strong>
+            <span>Tempo actual: <span class="tempo-actual">120.00</span> BPM</span>
+            <span>Objetivo: <span class="tempo-objetivo">120.00</span> BPM</span>
+            <span class="pitch-legend">±0.00% desde el centro</span>
+            <span>Offset físico: <span class="offset-value">0.00%</span></span>
+            <span>Notch actual: <span class="notch-value">0.00%</span></span>
           </div>
+        </header>
+        <div class="bpm-control" aria-label="Control de BPM original">
+          <button type="button" class="bpm-down" aria-label="Disminuir BPM">−</button>
+          <input type="number" class="bpm-input" min="30" max="300" step="0.01" aria-label="Editar BPM original" />
+          <button type="button" class="bpm-up" aria-label="Aumentar BPM">+</button>
         </div>
-        <div class="platter-area">
-          <div>
-            <div class="platter">
-              <div class="label">L</div>
-              <div class="spindle"></div>
+        <div class="slider-area">
+          <div class="fader" data-deck="left">
+            <div class="fader-track" aria-hidden="true">
+              <div class="track-inner"></div>
+              <div class="ghost-line" aria-hidden="true"></div>
+              <div class="extreme top">−</div>
+              <div class="extreme bottom">+</div>
             </div>
-            <div class="bpm-input">
-              <label for="bpmL">BPM Izquierda</label>
-              <input id="bpmL" type="number" inputmode="decimal" min="30" max="300" step="0.01" value="128.00">
-            </div>
-          </div>
-
-          <div>
-            <div class="fader">
-              <div class="track"></div>
-              <div id="ticksL"></div>
-              <div class="ghost" id="ghostL"></div>
-              <div class="thumb" id="thumbL"></div>
-            </div>
-            <p class="legend"><span id="legendL" class="muted">0%</span> desde el centro (quartz)</p>
+            <div class="quartz-chip" aria-hidden="true">QUARTZ LOCK</div>
+            <div class="thumb" tabindex="0" role="slider" aria-label="Fader de tempo" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0">0%</div>
           </div>
         </div>
-      </div>
-
-      <!-- RIGHT DECK -->
-      <div class="deck" id="deckR">
-        <div class="title">
-          <h2>Plato Derecho</h2>
-          <div class="kpis">
-            <span class="pill">BPM objetivo: <b id="bpmTargetR">—</b></span>
-            <span class="pill" id="pillR">Pitch: —</span>
+        <div class="slider-info">
+          <button type="button" class="secondary calibrate" aria-label="Calibrar cero físico con la posición actual">Calibrar cero físico</button>
+          <button type="button" class="secondary reset" aria-label="Restablecer offset a cero">Restablecer offset</button>
+        </div>
+      </section>
+      <section class="deck" id="deck-right" aria-label="Deck derecho">
+        <header>
+          <h2>Deck Derecha</h2>
+          <div class="tempo-display">
+            <span>BPM original</span>
+            <strong><span class="bpm-value">120.00</span> BPM</strong>
+            <span>Tempo actual: <span class="tempo-actual">120.00</span> BPM</span>
+            <span>Objetivo: <span class="tempo-objetivo">120.00</span> BPM</span>
+            <span class="pitch-legend">±0.00% desde el centro</span>
+            <span>Offset físico: <span class="offset-value">0.00%</span></span>
+            <span>Notch actual: <span class="notch-value">0.00%</span></span>
+          </div>
+        </header>
+        <div class="bpm-control" aria-label="Control de BPM original">
+          <button type="button" class="bpm-down" aria-label="Disminuir BPM">−</button>
+          <input type="number" class="bpm-input" min="30" max="300" step="0.01" aria-label="Editar BPM original" />
+          <button type="button" class="bpm-up" aria-label="Aumentar BPM">+</button>
+        </div>
+        <div class="slider-area">
+          <div class="fader" data-deck="right">
+            <div class="fader-track" aria-hidden="true">
+              <div class="track-inner"></div>
+              <div class="ghost-line" aria-hidden="true"></div>
+              <div class="extreme top">−</div>
+              <div class="extreme bottom">+</div>
+            </div>
+            <div class="quartz-chip" aria-hidden="true">QUARTZ LOCK</div>
+            <div class="thumb" tabindex="0" role="slider" aria-label="Fader de tempo" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0">0%</div>
           </div>
         </div>
-        <div class="platter-area">
-          <div>
-            <div class="platter">
-              <div class="label">R</div>
-              <div class="spindle"></div>
-            </div>
-            <div class="bpm-input">
-              <label for="bpmR">BPM Derecha</label>
-              <input id="bpmR" type="number" inputmode="decimal" min="30" max="300" step="0.01" value="125.00">
-            </div>
-          </div>
-
-          <div>
-            <div class="fader">
-              <div class="track"></div>
-              <div id="ticksR"></div>
-              <div class="ghost" id="ghostR"></div>
-              <div class="thumb" id="thumbR"></div>
-            </div>
-            <p class="legend"><span id="legendR" class="muted">0%</span> desde el centro (quartz)</p>
-          </div>
+        <div class="slider-info">
+          <button type="button" class="secondary calibrate" aria-label="Calibrar cero físico con la posición actual">Calibrar cero físico</button>
+          <button type="button" class="secondary reset" aria-label="Restablecer offset a cero">Restablecer offset</button>
         </div>
-      </div>
-    </section>
-
-    <footer>Marcas del fader: 1% (ligeras) y 2% (más marcadas y numeradas). 0% destacado en azul.</footer>
+      </section>
+    </div>
   </div>
-
 <script>
-(function(){
-  const bpmL = document.getElementById('bpmL');
-  const bpmR = document.getElementById('bpmR');
-  const bpmTargetL = document.getElementById('bpmTargetL');
-  const bpmTargetR = document.getElementById('bpmTargetR');
-  const thumbL = document.getElementById('thumbL');
-  const thumbR = document.getElementById('thumbR');
-  const ghostL = document.getElementById('ghostL');
-  const ghostR = document.getElementById('ghostR');
-  const legendL = document.getElementById('legendL');
-  const legendR = document.getElementById('legendR');
-  const ticksL = document.getElementById('ticksL');
-  const ticksR = document.getElementById('ticksR');
-  const pillL = document.getElementById('pillL');
-  const pillR = document.getElementById('pillR');
+  // Formateador numérico con configuración española
+  const formatPercent = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatBpm = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const rangeLabel = document.getElementById('rangeLabel');
-  const toggleRangeBtn = document.getElementById('toggleRangeBtn');
-
-  const radios = [...document.querySelectorAll('input[name="master"]')];
-
-  const FADER_H = 380;
-  const PAD_V = 24;
-  const TRACK_H = FADER_H - PAD_V*2;
-
-  let range = 0.10; // ±10% default
-
-  function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
-  function fmtPct(x){return (x>=0?'+':'') + (x*100).toFixed(2) + '%';}
-
-  function buildTicks(container){
-    container.innerHTML='';
-    const pctRange = Math.round(range*100); // 10 o 20
-    for(let p=-pctRange; p<=pctRange; p++){
-      const isZero = (p===0);
-      const isMajor = (p%2===0); // 2% increment major
-      const div = document.createElement('div');
-      div.className = 'tick ' + (isZero ? 'zero' : (isMajor ? 'major' : 'minor'));
-      // y: -range -> top ; +range -> bottom
-      const yNorm = (p + pctRange) / (2*pctRange);
-      const yPx = PAD_V + yNorm*TRACK_H;
-      div.style.top = (yPx|0)+'px';
-      if(isZero){
-        div.setAttribute('data-label','0%');
-      } else if(isMajor){
-        div.setAttribute('data-label', (p>0? '+'+p : String(p)) + '%');
+  const state = {
+    range: 0.10,
+    decks: {
+      left: {
+        id: 'left',
+        bpm: 120,
+        pNom: 0,
+        offset: 0,
+        elements: null
+      },
+      right: {
+        id: 'right',
+        bpm: 120,
+        pNom: 0,
+        offset: 0,
+        elements: null
       }
-      container.appendChild(div);
+    }
+  };
+
+  // buildTicks(trackEl, range): genera las marcas y etiquetas según el rango seleccionado
+  function buildTicks(trackEl, range) {
+    // Limpia y reconstruye por completo el carril de marcas según el rango activo
+    const inner = trackEl.querySelector('.track-inner');
+    inner.innerHTML = '';
+    const total = range * 100;
+    const step = 1; // marcas cada 1%
+    for (let percent = -total; percent <= total + 0.001; percent += step) {
+      const tick = document.createElement('div');
+      tick.className = 'tick';
+      const position = (percent + total) / (2 * total);
+      tick.style.top = `${position * 100}%`;
+      if (Math.abs(percent) < 0.0001) {
+        tick.classList.add('zero');
+      }
+      if (Math.round(Math.abs(percent)) % 2 === 0) {
+        tick.classList.add('major');
+        const label = document.createElement('span');
+        label.className = 'tick-label';
+        const sign = percent > 0 ? '+' : percent < 0 ? '−' : '';
+        label.textContent = `${sign}${formatPercent.format(Math.abs(percent))}%`;
+        tick.appendChild(label);
+      }
+      inner.appendChild(tick);
     }
   }
 
-  function applyFaderPosition(deck, p){ // p is fractional pitch (-range..+range)
-    const pctRange = range;
-    const yNorm = (p + pctRange) / (2*pctRange);
-    const yPx = clamp(yNorm,0,1) * (FADER_H - 48);
-    const thumb = (deck==='L') ? thumbL : thumbR;
-    const ghost = (deck==='L') ? ghostL : ghostR;
-    const legend = (deck==='L') ? legendL : legendR;
-    thumb.style.setProperty('--y', (24 + yPx) );
-    ghost.style.setProperty('--y', (24 + yPx) );
-    legend.textContent = fmtPct(p) + ' desde el centro';
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
   }
 
-  function update(){
-    const L = parseFloat(bpmL.value);
-    const R = parseFloat(bpmR.value);
-    if(!(L>0 && R>0)) return;
+  // effectivePitch(pNom, offset): devuelve el pitch efectivo considerando la calibración
+  function effectivePitch(pNom, offset) {
+    // Calcula el pitch efectivo respetando la tolerancia de bloqueo de cuarzo
+    const diff = pNom - offset;
+    return Math.abs(diff) <= 0.001 ? 0 : diff;
+  }
 
-    const master = radios.find(r=>r.checked).value; // 'L' or 'R'
-    let pL = 0, pR = 0;
-    let targetBpmL = L, targetBpmR = R;
+  // snapPitch(pNom, offset): aplica el snap al soltar si la desviación es mínima
+  function snapPitch(pNom, offset) {
+    // Ajusta el pitch nominal al offset si se encuentra dentro de la zona de snap
+    const diff = pNom - offset;
+    return Math.abs(diff) <= 0.0015 ? offset : pNom;
+  }
 
-    if(master==='L'){
-      // Ajustar R para igualar L: pR = L/R - 1
-      pR = (L/R) - 1;
-      targetBpmR = R*(1+pR);
-      pL = 0; targetBpmL = L;
-    }else{
-      // Ajustar L para igualar R: pL = R/L - 1
-      pL = (R/L) - 1;
-      targetBpmL = L*(1+pL);
-      pR = 0; targetBpmR = R;
+  function computeTempo(deck) {
+    const pEff = effectivePitch(deck.pNom, deck.offset);
+    return deck.bpm * (1 + pEff);
+  }
+
+  function getOtherDeckId(deckId) {
+    return deckId === 'left' ? 'right' : 'left';
+  }
+
+  function updateRangeUI() {
+    const label = document.getElementById('range-label');
+    const toggle = document.getElementById('toggle-range');
+    const current = state.range * 100;
+    label.textContent = `Rango actual: ±${formatPercent.format(current)}%`;
+    toggle.textContent = `Cambiar rango ±${current === 10 ? '20' : '10'}%`;
+    toggle.setAttribute('aria-pressed', current === 20 ? 'true' : 'false');
+    document.querySelectorAll('.fader-track').forEach(track => buildTicks(track, state.range));
+    Object.values(state.decks).forEach(deck => updateDeckUI(deck.id));
+  }
+
+  function positionFromPitch(pNom) {
+    // mapping: convierte el pitch nominal a una posición normalizada (0-1) dentro del carril
+    const range = state.range;
+    const normalized = (pNom + range) / (2 * range);
+    return clamp(normalized, 0, 1);
+  }
+
+  function pitchFromPosition(position) {
+    // mapping inversa: traduce la posición del carril al valor de pitch nominal
+    const range = state.range;
+    return -range + position * 2 * range;
+  }
+
+  function updateThumbPosition(deck, animate = false) {
+    const { thumb, track } = deck.elements;
+    const trackRect = track.getBoundingClientRect();
+    const height = trackRect.height;
+    const position = positionFromPitch(deck.pNom);
+    const y = position * height;
+    thumb.style.top = `${y}px`;
+    const thumbPercent = deck.pNom * 100;
+    const thumbSign = deck.pNom > 0 ? '+' : deck.pNom < 0 ? '−' : '';
+    thumb.textContent = `${thumbSign}${formatPercent.format(Math.abs(thumbPercent))}%`;
+    thumb.setAttribute('aria-valuemin', (-state.range * 100).toFixed(0));
+    thumb.setAttribute('aria-valuemax', (state.range * 100).toFixed(0));
+    thumb.setAttribute('aria-valuenow', (deck.pNom * 100).toFixed(2));
+  }
+
+  function updateGhost(deck) {
+    const ghost = deck.elements.ghost;
+    const otherDeck = state.decks[getOtherDeckId(deck.id)];
+    const targetTempo = computeTempo(otherDeck);
+    const pEffNeeded = targetTempo / deck.bpm - 1;
+    const unclamped = pEffNeeded + deck.offset;
+    const pNomNeeded = clamp(unclamped, -state.range, state.range);
+    const trackRect = deck.elements.track.getBoundingClientRect();
+    const height = trackRect.height;
+    const position = positionFromPitch(pNomNeeded);
+    ghost.style.top = `${position * height}px`;
+    ghost.style.opacity = Math.abs(unclamped) > state.range ? 0.25 : 0.6;
+    ghost.style.display = 'block';
+  }
+
+  function updateQuartzChip(deck) {
+    const chip = deck.elements.chip;
+    const pEff = effectivePitch(deck.pNom, deck.offset);
+    chip.classList.toggle('visible', Math.abs(pEff) === 0);
+  }
+
+  function updateDeckUI(deckId) {
+    const deck = state.decks[deckId];
+    const tempo = computeTempo(deck);
+    const otherTempo = computeTempo(state.decks[getOtherDeckId(deckId)]);
+    const container = deck.elements.container;
+    container.querySelector('.bpm-value').textContent = formatBpm.format(deck.bpm);
+    container.querySelector('.tempo-actual').textContent = formatBpm.format(tempo);
+    container.querySelector('.tempo-objetivo').textContent = formatBpm.format(otherTempo);
+    const pitchLegend = deck.pNom * 100;
+    const pitchSign = deck.pNom > 0 ? '+' : deck.pNom < 0 ? '−' : '';
+    container.querySelector('.pitch-legend').textContent = `${pitchSign}${formatPercent.format(Math.abs(pitchLegend))}% desde el centro`;
+    const offsetPercent = deck.offset * 100;
+    const offsetSign = deck.offset > 0 ? '+' : deck.offset < 0 ? '−' : '';
+    container.querySelector('.offset-value').textContent = `${offsetSign}${formatPercent.format(Math.abs(offsetPercent))}%`;
+    const notch = (deck.pNom - deck.offset) * 100;
+    const notchSign = notch > 0 ? '+' : notch < 0 ? '−' : '';
+    container.querySelector('.notch-value').textContent = `${notchSign}${formatPercent.format(Math.abs(notch))}%`;
+    const bpmInput = container.querySelector('.bpm-input');
+    bpmInput.value = formatBpm.format(deck.bpm);
+    updateThumbPosition(deck);
+    updateGhost(deck);
+    updateQuartzChip(deck);
+  }
+
+  function setPitch(deckId, pNom, { snap = false } = {}) {
+    const deck = state.decks[deckId];
+    deck.pNom = clamp(pNom, -state.range, state.range);
+    if (snap) {
+      deck.pNom = snapPitch(deck.pNom, deck.offset);
     }
-
-    // Estado de rango
-    const inRangeL = Math.abs(pL) <= range + 1e-9;
-    const inRangeR = Math.abs(pR) <= range + 1e-9;
-
-    // KPIs
-    bpmTargetL.textContent = targetBpmL.toFixed(2);
-    bpmTargetR.textContent = targetBpmR.toFixed(2);
-
-    pillL.textContent = 'Pitch: ' + fmtPct(pL);
-    pillR.textContent = 'Pitch: ' + fmtPct(pR);
-    pillL.className = 'pill ' + (Math.abs(pL)===0 ? '' : (inRangeL ? (Math.abs(pL)>0.8*range?'warn':'ok') : 'bad'));
-    pillR.className = 'pill ' + (Math.abs(pR)===0 ? '' : (inRangeR ? (Math.abs(pR)>0.8*range?'warn':'ok') : 'bad'));
-
-    // Faders
-    applyFaderPosition('L', clamp(pL, -range, +range));
-    applyFaderPosition('R', clamp(pR, -range, +range));
+    updateDeckUI(deckId);
+    updateDeckUI(getOtherDeckId(deckId));
   }
 
-  function rebuildTicks(){
-    buildTicks(ticksL);
-    buildTicks(ticksR);
+  function nudgePitch(deckId, delta) {
+    const deck = state.decks[deckId];
+    setPitch(deckId, deck.pNom + delta);
   }
 
-  // Events
-  bpmL.addEventListener('input', update);
-  bpmR.addEventListener('input', update);
-  radios.forEach(r=>r.addEventListener('change', update));
+  // adjustBpmPreservingTempo(deck, newBpm): mantiene el tempo actual al editar el BPM original
+  function adjustBpmPreservingTempo(deck, newBpm) {
+    // Recalcula el BPM base manteniendo el tempo resultante y recoloca el fader
+    const tempoPrev = computeTempo(deck);
+    deck.bpm = clamp(newBpm, 30, 300);
+    const pEffNuevo = tempoPrev / deck.bpm - 1;
+    deck.pNom = clamp(pEffNuevo + deck.offset, -state.range, state.range);
+  }
 
-  toggleRangeBtn.addEventListener('click', ()=>{
-    range = (range===0.10)? 0.20 : 0.10;
-    rangeLabel.textContent = '±' + Math.round(range*100) + '%';
-    toggleRangeBtn.textContent = 'Cambiar a ±' + (range===0.10? '20' : '10') + '%';
-    rebuildTicks();
-    update();
+  // alignTempos(fixedDeckId): el deck fijado permanece y el otro se ajusta
+  function alignTempos(fixedDeckId) {
+    // Utiliza el tempo del deck de referencia y desplaza el fader del otro deck
+    const fixed = state.decks[fixedDeckId];
+    const movingId = getOtherDeckId(fixedDeckId);
+    const moving = state.decks[movingId];
+    const tempoTarget = computeTempo(fixed);
+    const pEffNeeded = tempoTarget / moving.bpm - 1;
+    const pNomNeeded = clamp(pEffNeeded + moving.offset, -state.range, state.range);
+    moving.pNom = pNomNeeded;
+    updateDeckUI(movingId);
+    updateDeckUI(fixedDeckId);
+  }
+
+  function initializeDeck(deckId) {
+    const deck = state.decks[deckId];
+    const container = document.getElementById(`deck-${deckId}`);
+    deck.elements = {
+      container,
+      bpmInput: container.querySelector('.bpm-input'),
+      bpmUp: container.querySelector('.bpm-up'),
+      bpmDown: container.querySelector('.bpm-down'),
+      track: container.querySelector('.fader-track'),
+      thumb: container.querySelector('.thumb'),
+      ghost: container.querySelector('.ghost-line'),
+      chip: container.querySelector('.quartz-chip'),
+      calibrate: container.querySelector('.calibrate'),
+      reset: container.querySelector('.reset')
+    };
+    deck.elements.bpmUp.addEventListener('click', () => {
+      adjustBpmPreservingTempo(deck, deck.bpm + 0.1);
+      updateDeckUI(deckId);
+      updateDeckUI(getOtherDeckId(deckId));
+    });
+    deck.elements.bpmDown.addEventListener('click', () => {
+      adjustBpmPreservingTempo(deck, deck.bpm - 0.1);
+      updateDeckUI(deckId);
+      updateDeckUI(getOtherDeckId(deckId));
+    });
+    deck.elements.bpmInput.addEventListener('change', event => {
+      const value = parseFloat(event.target.value.replace(',', '.'));
+      if (!Number.isFinite(value)) {
+        event.target.value = formatBpm.format(deck.bpm);
+        return;
+      }
+      adjustBpmPreservingTempo(deck, value);
+      updateDeckUI(deckId);
+      updateDeckUI(getOtherDeckId(deckId));
+    });
+
+    const thumb = deck.elements.thumb;
+    const track = deck.elements.track;
+
+    const pointerHandler = {
+      active: false,
+      start(event) {
+        event.preventDefault();
+        this.active = true;
+        thumb.setPointerCapture(event.pointerId);
+        this.move(event);
+      },
+      move(event) {
+        if (!this.active) return;
+        const rect = track.getBoundingClientRect();
+        const y = clamp(event.clientY - rect.top, 0, rect.height);
+        const position = y / rect.height;
+        const pNom = pitchFromPosition(position);
+        setPitch(deckId, pNom);
+      },
+      end(event) {
+        if (!this.active) return;
+        this.active = false;
+        thumb.releasePointerCapture(event.pointerId);
+        setPitch(deckId, state.decks[deckId].pNom, { snap: true });
+      }
+    };
+
+    thumb.addEventListener('pointerdown', event => pointerHandler.start(event));
+    thumb.addEventListener('pointermove', event => pointerHandler.move(event));
+    thumb.addEventListener('pointerup', event => pointerHandler.end(event));
+    thumb.addEventListener('pointercancel', event => pointerHandler.end(event));
+
+    track.addEventListener('pointerdown', event => {
+      const rect = track.getBoundingClientRect();
+      const y = clamp(event.clientY - rect.top, 0, rect.height);
+      const position = y / rect.height;
+      const pNom = pitchFromPosition(position);
+      setPitch(deckId, pNom);
+      setPitch(deckId, state.decks[deckId].pNom, { snap: true });
+    });
+
+    thumb.addEventListener('keydown', event => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      const multiplier = event.shiftKey ? 0.001 : 0.0001;
+      const delta = event.key === 'ArrowUp' ? -multiplier : multiplier;
+      nudgePitch(deckId, delta);
+    });
+
+    thumb.addEventListener('keyup', event => {
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        setPitch(deckId, state.decks[deckId].pNom, { snap: true });
+      }
+    });
+
+    deck.elements.calibrate.addEventListener('click', () => {
+      deck.offset = deck.pNom;
+      updateDeckUI(deckId);
+      updateDeckUI(getOtherDeckId(deckId));
+    });
+
+    deck.elements.reset.addEventListener('click', () => {
+      deck.offset = 0;
+      updateDeckUI(deckId);
+      updateDeckUI(getOtherDeckId(deckId));
+    });
+
+    updateDeckUI(deckId);
+  }
+
+  document.getElementById('toggle-range').addEventListener('click', () => {
+    state.range = state.range === 0.10 ? 0.20 : 0.10;
+    updateRangeUI();
   });
 
-  // init
-  rebuildTicks();
-  update();
-})();
+  document.getElementById('align-right').addEventListener('click', () => alignTempos('left'));
+  document.getElementById('align-left').addEventListener('click', () => alignTempos('right'));
+
+  initializeDeck('left');
+  initializeDeck('right');
+  updateRangeUI();
+  window.addEventListener('resize', () => {
+    Object.keys(state.decks).forEach(id => updateDeckUI(id));
+  });
 </script>
 </body>
 </html>
